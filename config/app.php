@@ -122,5 +122,9 @@ return [
         'driver' => env('APP_MAINTENANCE_DRIVER', 'file'),
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
+    'basic_auth' => [
+        'username' => env('BASIC_AUTH_USERNAME'),
+        'password' => env('BASIC_AUTH_PASSWORD'),
+    ],
 
 ];
