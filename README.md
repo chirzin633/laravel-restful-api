@@ -1,59 +1,223 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Laravel RESTful API
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Book and User management API built with Laravel 12, Sanctum authentication.
 
-## About Laravel
+## Stack
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- PHP ^8.2
+- Laravel ^12.0
+- Laravel Sanctum ^4.0
+- MySQL
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Features
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- Register / login gated by HTTP Basic Auth
+- Token auth (Sanctum Bearer) for Book and User routes
+- Book CRUD with pagination
+- User + UserProfile CRUD in DB transaction
+- Auto-generated OpenAPI docs via Scramble
 
-## Learning Laravel
+## Getting Started
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+```bash
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate
+php artisan serve
+```
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Configure in `.env`:
 
-## Laravel Sponsors
+```env
+APP_URL=http://localhost:8000
+BASIC_AUTH_USERNAME=your-username
+BASIC_AUTH_PASSWORD=your-password
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+`BASIC_AUTH_*` values are read in `config/app.php` (`app.basic_auth`) and enforced by `app/Http/Middleware/BasicAuthMiddleware.php`.
 
-### Premium Partners
+## API Documentation (Scramble)
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+- UI: `GET /docs/api`
+- OpenAPI JSON: `GET /docs/api.json`
 
-## Contributing
+Scramble documents all routes under `api_path: api`.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Authentication
 
-## Code of Conduct
+Two layers:
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+1. **HTTP Basic Auth** — required for `register` and `login` only.
 
-## Security Vulnerabilities
+```bash
+curl -u username:password http://localhost:8000/api/v1/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@mail.com","password":"password123"}'
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+2. **Bearer token** — required for all `/book/*` and `/user/*` routes. Token is issued by `login`.
 
-## License
+```bash
+curl http://localhost:8000/api/v1/book/list \
+  -H "Authorization: Bearer <token>" \
+  -H "Accept: application/json"
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Endpoints
+
+Base prefix: `/api/v1`
+
+### Auth (Basic Auth required)
+
+#### POST `/register`
+
+Body:
+
+```json
+{
+    "name": "John",
+    "email": "john@mail.com",
+    "password": "password123"
+}
+```
+
+- `name`: required
+- `email`: required, email, unique
+- `password`: required, min 8
+
+Success `200`:
+
+```json
+{
+    "message": "User created successfully!",
+    "user": { "id": 1, "name": "John", "email": "john@mail.com" }
+}
+```
+
+#### POST `/login`
+
+Body:
+
+```json
+{
+    "email": "john@mail.com",
+    "password": "password123"
+}
+```
+
+Success `200`:
+
+```json
+{
+    "message": "User login successfully!",
+    "token": { "token": "<plain-text-token>", "type": "Bearer" }
+}
+```
+
+Failure `401`:
+
+```json
+{ "error": "The provided credentials are incorects" }
+```
+
+### Book (Bearer required)
+
+#### GET `/book/list?perPage=5`
+
+`perPage` defaults to `5`. Success `200` returns Laravel paginator in `data`. Empty result returns `404`:
+
+```json
+{ "message": "Tidak ada data buku" }
+```
+
+#### POST `/book/create`
+
+```json
+{
+    "title": "Clean Code",
+    "description": "A book about writing code"
+}
+```
+
+- `title`: required
+- `description`: nullable
+
+Success returns `{ "message": "Book created successfully!", "data": {...} }`.
+
+#### PUT `/book/update/{id}`
+
+Same body as create. Success returns `{ "message": "Book updated successfully!", "data": {...} }`. Non-existent id throws `404` via `findOrFail`.
+
+#### DELETE `/book/delete/{book}`
+
+Uses route model binding. Success:
+
+```json
+{ "message": "Book deleted successfully!" }
+```
+
+### User (Bearer required)
+
+#### GET `/user/list`
+
+Returns all users with `profile` relation:
+
+```json
+{ "data": [{ "id": 1, "name": "John", "profile": {...} }] }
+```
+
+Status `201` (as implemented).
+
+#### POST `/user/create`
+
+```json
+{
+    "name": "John",
+    "email": "john@mail.com",
+    "password": "password123",
+    "first_name": "John",
+    "last_name": "Doe"
+}
+```
+
+Success `201`:
+
+```json
+{
+  "message": "User & profile has been created!",
+  "data": { "id": 1, "profile": {...} }
+}
+```
+
+Failure `500`:
+
+```json
+{
+    "message": "Failed to create user & profile",
+    "error": "<exception message>"
+}
+```
+
+#### PUT `/user/update/{user}`
+
+Same fields, `password` is `nullable` (omitted = keep existing). Uses `updateOrCreate` for profile. Success `201`, failure `500`.
+
+#### DELETE `/user/delete/{user}`
+
+Soft deletes (model uses `SoftDeletes`). Success `200`:
+
+```json
+{ "message": "User & profile has been deleted!" }
+```
+
+## Status Codes
+
+| Code | Meaning                                           |
+| ---- | ------------------------------------------------- |
+| 200  | Success (auth, book routes, user delete)          |
+| 201  | Created / success (user list, user create/update) |
+| 401  | Missing/invalid Basic Auth, or invalid login      |
+| 404  | Empty book list, model not found                  |
+| 422  | Validation error                                  |
+| 500  | User transaction failure                          |
