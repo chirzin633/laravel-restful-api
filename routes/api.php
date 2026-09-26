@@ -20,6 +20,9 @@ Route::prefix('v1')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::prefix('book')->group(function () {
             Route::post('/create', [BookController::class, 'create']);
+            Route::put('/update/{id}', [BookController::class, 'update']);
+            Route::get('/list', [BookController::class, 'index']);
+            Route::delete('/delete/{book}', [BookController::class, 'delete']);
         });
     });
 });
