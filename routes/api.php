@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\API\AuthController;
 use App\Http\Controllers\API\BookController;
+use App\Http\Controllers\API\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -23,6 +24,13 @@ Route::prefix('v1')->group(function () {
             Route::put('/update/{id}', [BookController::class, 'update']);
             Route::get('/list', [BookController::class, 'index']);
             Route::delete('/delete/{book}', [BookController::class, 'delete']);
+        });
+
+        Route::prefix('user')->group(function () {
+            Route::post('/create', [UserController::class, 'create']);
+            Route::put('/update/{id}', [UserController::class, 'update']);
+            Route::get('/list', [UserController::class, 'index']);
+            Route::delete('/delete/{user}', [UserController::class, 'delete']);
         });
     });
 });
