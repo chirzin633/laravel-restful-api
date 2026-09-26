@@ -28,7 +28,7 @@ Route::prefix('v1')->group(function () {
 
         Route::prefix('user')->group(function () {
             Route::post('/create', [UserController::class, 'create']);
-            Route::put('/update/{id}', [UserController::class, 'update']);
+            Route::put('/update/{user}', [UserController::class, 'update']);
             Route::get('/list', [UserController::class, 'index']);
             Route::delete('/delete/{user}', [UserController::class, 'delete']);
         });
